@@ -33,6 +33,7 @@ settings:
   default_max_ms: 10 # graph scale when ping is low
   bar_width: 2 # width in px of single bar on graph
   bar_gap:   1 # gap in px between bars
+  graph_direction: 'ltr' # which way fill the graph - 'ltr' or 'rtl'
 
 bars_colors: [
   {min: -1, max: 0,    color: 'rgba(0,0,0,.6)'} # unavailable
@@ -100,6 +101,7 @@ _recalc_values: (name, ping) ->
     else
       Math.ceil(@maximums[name] / 1000) * 1000
 
+
 # updates current ping and redraws graph
 _update_row: (name, el) ->
   el.find('.max').html @maximums[name]
@@ -107,22 +109,61 @@ _update_row: (name, el) ->
     el.removeClass 'down'
     el.find('.ping').html @pings[name].toFixed(1)
   else
-    el.addClass 'down'
+    el.addClass 'down' # class .down means there's no internet
     el.find('.ping').html ''
   
+  # clearing all graph area, for it's being redrawn completely at each cycle
   @contexts[name].clearRect 0, 0, @settings.canvas_w, @settings.canvas_h
+  
+  # for how many pixels graph area moves after drawing each separate bar
   step = @settings.bar_width + @settings.bar_gap
+  
   do @contexts[name].beginPath
+  # iterate over each value in history and draw a bar
   for p in @history[name]
+    # choose color for the bar
     for g in @bars_colors when g.min < p <= g.max
       @contexts[name].fillStyle = g.color
     
-    @contexts[name].fillRect 0
-    , (if p is 0 then 0 else @settings.canvas_h - (p * @settings.canvas_h / @maximums[name]))
-    , @settings.bar_width
-    , @settings.canvas_h
-    @contexts[name].transform(1,0,0,1, step ,0)
-  @contexts[name].transform(1,0,0,1, -step * @history[name].length ,0)
+    # ################################################ #
+    if @settings.graph_direction is 'ltr'
+      # LEFT-TO-RIGHT
+      # draw the bar itself
+      #  fillRect x, y, w, h
+      #  x = 0 - drawing from left edge
+      #  y = 0 when no ping, draw fullheight black bar
+      #  y = canvas_height - part ping takes in max value, so
+      #    starting to draw rectangle not from top of the canvas, but lower
+      #  w = bar_width
+      #  h = canvas_height - doesn't matter if it goes below the bottom edge
+      @contexts[name].fillRect 0
+      , (if p is 0 then 0 else @settings.canvas_h - (p * @settings.canvas_h / @maximums[name]))
+      , @settings.bar_width
+      , @settings.canvas_h
+      # move all graph area for 'step' pixels right
+      #  transform a, b, c, d, e, f
+      #  e - Moves the the drawing horizontally
+      #  http://www.w3schools.com/tags/canvas_transform.asp
+      @contexts[name].transform 1, 0, 0, 1, step, 0
+    else
+      # RIGHT-TO-LEFT
+      # draw the bar itself
+      @contexts[name].fillRect @settings.canvas_w - @settings.bar_width
+      , (if p is 0 then 0 else @settings.canvas_h - (p * @settings.canvas_h / @maximums[name]))
+      , @settings.bar_width
+      , @settings.canvas_h
+      # move all graph area for 'step' pixels left
+      @contexts[name].transform 1, 0, 0, 1, -step, 0
+    # ################################################ #
+  
+  # move canvas back, or else every cycle bars will be appended, not redrawn
+  if @settings.graph_direction is 'ltr'
+    # LEFT-TO-RIGHT
+    @contexts[name].transform 1, 0, 0, 1, (-step * @history[name].length), 0
+  else
+    # RIGHT-TO-LEFT
+    @contexts[name].transform 1, 0, 0, 1, (step * @history[name].length), 0
+
 
 
 # the CSS style for this widget, written using Stylus
