@@ -22,6 +22,9 @@ command: """
   done
   """
 
+# regexp to get alias and ping data from bash output
+regexp: /^([^:]+):(.+=\s([^/]+)|.+)?/
+
 # the refresh frequency in milliseconds
 # better keep value in seconds higher than domains count (3 domains => 3000+)
 # or you'll be getting "error running command" sometimes
@@ -47,7 +50,9 @@ bars_colors: [
 # create table
 render: (output) -> """
   <table>
-    #{(@_create_row o, i for o, i in output.split '\n' when o).join ''}
+    #{(for o in output.split '\n' when @regexp.test o
+      @_create_row o
+    ).join ''}
   </table>
   """
 
@@ -64,17 +69,17 @@ afterRender: (domEl) ->
 
 # display actual info
 update: (output, domEl) ->
-  for o, i in output.split '\n' when o
-    [s, name, r, ping] = o.match /^([^:]+):(.+=\s([^/]+)|.+)?/
-    @_recalc_values name, ping
-    @_update_row name, $(domEl).find '#domain-'+i
+  for o in output.split '\n' when @regexp.test o
+    [s, name, r, ping] = o.match @regexp
+    @_recalc_values name, ping ? 0
+    @_update_row name, $(domEl).find "[data-name='#{name}']"
 
 
 # creates single row in the table on first load
-_create_row: (output, i) ->
+_create_row: (output) ->
   name = output.split(':')[0]
   """
-  <tr id="domain-#{i}" data-name="#{name}">
+  <tr data-name="#{name}">
     <td class="name">#{name}</td>
     <td class="ping"></td>
     <td class="graph">
@@ -101,15 +106,14 @@ _recalc_values: (name, ping) ->
     else
       Math.ceil(@maximums[name] / 1000) * 1000
 
-
 # updates current ping and redraws graph
 _update_row: (name, el) ->
   el.find('.max').html @maximums[name]
   if @pings[name]
-    el.removeClass 'down'
+    el.removeClass 'down' if el.hasClass 'down'
     el.find('.ping').html @pings[name].toFixed(1)
   else
-    el.addClass 'down' # class .down means there's no internet
+    el.addClass 'down' unless el.hasClass 'down'
     el.find('.ping').html ''
   
   # clearing all graph area, for it's being redrawn completely at each cycle
