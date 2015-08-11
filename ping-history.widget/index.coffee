@@ -33,7 +33,7 @@ refreshFrequency: 7000
 settings:
   canvas_w: 90 # width and
   canvas_h: 15 # height of canvas for each graph in px
-  default_max_ms: 10 # graph scale when ping is low
+  default_max_ms: 50 # graph scale when ping is low
   bar_width: 2 # width in px of single bar on graph
   bar_gap:   1 # gap in px between bars
   graph_direction: 'ltr' # which way fill the graph - 'ltr' or 'rtl'
@@ -50,7 +50,7 @@ bars_colors: [
 # create table
 render: (output) -> """
   <table>
-    #{(for o in output.split '\n' when @regexp.test o
+    #{(for o in output.split '\n' when o and @regexp.test o
       @_create_row o
     ).join ''}
   </table>
@@ -69,7 +69,7 @@ afterRender: (domEl) ->
 
 # display actual info
 update: (output, domEl) ->
-  for o in output.split '\n' when @regexp.test o
+  for o in output.split '\n' when o and @regexp.test o
     [s, name, r, ping] = o.match @regexp
     @_recalc_values name, ping ? 0
     @_update_row name, $(domEl).find "[data-name='#{name}']"
