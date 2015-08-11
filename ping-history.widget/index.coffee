@@ -17,8 +17,7 @@ command: """
   ###  AND DON'T FORGET SHORT ALIASES
 
   for i in "${!domains[@]}"; do
-  	echo -n "${aliases[$i]}:"
-  	echo $(ping -o -c 1 -t 1 ${domains[$i]} | tail -n 1)
+  	echo "${aliases[$i]}:$(ping -o -c 1 -t 1 ${domains[$i]} | tail -n 1)"
   done
   """
 
