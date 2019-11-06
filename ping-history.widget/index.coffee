@@ -7,9 +7,9 @@
 command: """
   # command pings domains in array 'domains'
   # and displays result like 'name:last string of ping output', e.g.:
-  #  domain1_name:round-trip min/avg/max/stddev = 3.439/3.439/3.439/0.000 ms
-  #  domain2_name:1 packets transmitted, 0 packets received, 100.0% packet loss
-  #  domain3_name:ping: cannot resolve domain4_name: Unknown host
+  #  alias1:domain1_name:round-trip min/avg/max/stddev = 3.439/3.439/3.439/0.000 ms
+  #  alias2:domain2_name:1 packets transmitted, 0 packets received, 100.0% packet loss
+  #  alias3:domain3_name:ping: cannot resolve domain4_name: Unknown host
   
   ###  LIST YOUR DOMAINS HERE
   declare -a domains=( 8.8.8.8  ya.ru   bbc.co.uk )
@@ -18,12 +18,13 @@ command: """
 
   for i in "${!domains[@]}"; do
   	echo -n "${aliases[$i]}:"
+    echo -n "${domains[$i]}:"
   	echo $(ping -o -c 1 -t 1 ${domains[$i]} | tail -n 1)
   done
   """
 
 # regexp to get alias and ping data from bash output
-regexp: /^([^:]+):(.+=\s([^/]+)|.+)?/
+regexp: /^([^:]+):([^:]+):(.+=\s([^/]+)|.+)?/
 
 # the refresh frequency in milliseconds
 # better keep value in seconds higher than domains count (3 domains => 3000+)
@@ -70,7 +71,7 @@ afterRender: (domEl) ->
 # display actual info
 update: (output, domEl) ->
   for o in output.split '\n' when o and @regexp.test o
-    [s, name, r, ping] = o.match @regexp
+    [s, name, domain, r, ping] = o.match @regexp
     @_recalc_values name, ping ? 0
     @_update_row name, $(domEl).find "[data-name='#{name}']"
 
@@ -78,6 +79,7 @@ update: (output, domEl) ->
 # creates single row in the table on first load
 _create_row: (output) ->
   name = output.split(':')[0]
+  domain = output.split(':')[1]
   """
   <tr data-name="#{name}">
     <td class="name">#{name}</td>
